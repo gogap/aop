@@ -1,3 +1,12 @@
+AOP
+===
+Aspect Oriented Programming For Golang
+
+> current version is in alpha, welcome to submit your ideas
+
+### Usage:
+
+```go
 package main
 
 import (
@@ -79,5 +88,21 @@ func main() {
 	); err != nil {
 		fmt.Println("call error:", err)
 	}
-
 }
+
+```
+
+```bash
+$> go run main.go
+
+Pointcut: Hello()
+before hello 01 gogap
+before hello 02 gogap
+hello gogap
+after hello
+return value is: ok
+
+Pointcut: World()
+before world
+hello world
+```

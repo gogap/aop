@@ -2,12 +2,11 @@ package aop
 
 import (
 	"github.com/gogap/errors"
-	"reflect"
 )
 
 type BeanFactory interface {
-	RegisterBean(id string, value interface{}) BeanFactory
-	GetBean(id string) (bean interface{}, err error)
+	RegisterBean(id string, class string, value interface{}) BeanFactory
+	GetBean(id string) (bean *Bean, err error)
 }
 
 type BeanFactoryAware interface {
@@ -15,16 +14,16 @@ type BeanFactoryAware interface {
 }
 
 type ClassicBeanFactory struct {
-	beans map[string]interface{}
+	beans map[string]*Bean
 }
 
 func NewClassicBeanFactory() BeanFactory {
 	return &ClassicBeanFactory{
-		beans: make(map[string]interface{}),
+		beans: make(map[string]*Bean),
 	}
 }
 
-func (p *ClassicBeanFactory) GetBean(id string) (bean interface{}, err error) {
+func (p *ClassicBeanFactory) GetBean(id string) (bean *Bean, err error) {
 	if id == "" {
 		err = ErrBeanIDShouldNotBeEmpty.New()
 		return
@@ -37,7 +36,7 @@ func (p *ClassicBeanFactory) GetBean(id string) (bean interface{}, err error) {
 	return nil, ErrBeanNotExist.New(errors.Params{"id": id})
 }
 
-func (p *ClassicBeanFactory) RegisterBean(id string, beanObj interface{}) (factory BeanFactory) {
+func (p *ClassicBeanFactory) RegisterBean(id string, class string, beanInstance interface{}) (factory BeanFactory) {
 	var err error
 
 	defer func() {
@@ -46,28 +45,17 @@ func (p *ClassicBeanFactory) RegisterBean(id string, beanObj interface{}) (facto
 		}
 	}()
 
-	if id == "" {
-		err = ErrBeanIDShouldNotBeEmpty.New()
-		return
-	}
-
 	if _, exist := p.beans[id]; exist {
 		err = ErrBeanAlreadyRegistered.New(errors.Params{"id": id})
 		return
 	}
 
-	if beanObj == nil {
-		err = ErrBeanInstanceIsNil.New(errors.Params{"id": id})
+	var bean *Bean
+	if bean, err = NewBean(id, class, beanInstance); err != nil {
 		return
 	}
 
-	v := reflect.ValueOf(beanObj)
-	if v.Kind() != reflect.Ptr {
-		err = ErrBeanIsNotAnPtr.New(errors.Params{"id": id})
-		return
-	}
-
-	p.beans[id] = beanObj
+	p.beans[id] = bean
 
 	return p
 }
