@@ -172,36 +172,21 @@ func (p *AOP) GetProxy(beanID string) (proxy *Proxy, err error) {
 
 	tmpProxy := NewProxy(beanID)
 
+	beanValue := reflect.ValueOf(bean.instance)
 	beanType := reflect.TypeOf(bean.instance)
-	for i := 0; i < beanType.NumMethod(); i++ {
-		method := beanType.Method(i)
-		commonMethodType := getCommonFuncType(method)
-		newFunc := p.funcWrapper(bean, method.Name, commonMethodType)
-		funcV := reflect.MakeFunc(commonMethodType, newFunc)
+	for i := 0; i < beanValue.NumMethod(); i++ {
+		methodV := beanValue.Method(i)
+		methodT := beanType.Method(i)
 
-		tmpProxy.registryFunc(method.Name, funcV.Interface())
+		mType := methodV.Type()
+
+		newFunc := p.funcWrapper(bean, methodT.Name, mType)
+		funcV := reflect.MakeFunc(mType, newFunc)
+
+		tmpProxy.registryFunc(methodT.Name, funcV.Interface())
 	}
 
 	proxy = tmpProxy
 
 	return
-}
-
-// TODO: add type build cache
-func getCommonFuncType(method reflect.Method) reflect.Type {
-	inTypes := []reflect.Type{}
-	for i := 0; i < method.Type.NumIn(); i++ {
-		inTypes = append(inTypes, method.Type.In(i))
-	}
-
-	outTypes := []reflect.Type{}
-	for i := 0; i < method.Type.NumOut(); i++ {
-		outTypes = append(outTypes, method.Type.Out(i))
-	}
-
-	if len(inTypes) > 0 {
-		inTypes = inTypes[1:]
-	}
-
-	return reflect.FuncOf(inTypes, outTypes, method.Type.IsVariadic())
 }
