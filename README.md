@@ -68,25 +68,35 @@ func main() {
 
 	gogapAop.AddAspect(aspect)
 
-	fmt.Println("Pointcut: Hello()")
+	fmt.Println("* Pointcut: Hello()")
 	if err := gogapAop.Invoke(
 		"test_bean",       // bean id
 		"Hello",           // call func
 		aop.Args{"gogap"}, // args
 		func(ret string) { // the func return value
-			fmt.Println("return value is:", ret)
+			fmt.Println(" -> return value is:", ret)
 		}); err != nil {
 		fmt.Println("call error:", err)
 	}
 
 	fmt.Println("")
-	fmt.Println("Pointcut: World()")
+	fmt.Println("* Pointcut: World()")
 	if err := gogapAop.Invoke(
 		"test_bean", // bean id
 		"World",     // call func
 		nil,         // args
 	); err != nil {
 		fmt.Println("call error:", err)
+	}
+
+	fmt.Println("")
+	fmt.Println("* Call by Proxy")
+	if proxy, err := gogapAop.GetProxy("test_bean"); err != nil {
+		fmt.Println(err)
+		return
+	} else {
+		ret := proxy.Method("Hello").(func(string) string)("I AM Proxy")
+		fmt.Println(" -> return value is:", ret)
 	}
 }
 
@@ -95,14 +105,22 @@ func main() {
 ```bash
 $> go run main.go
 
-Pointcut: Hello()
+* Pointcut: Hello()
 before hello 01 gogap
 before hello 02 gogap
 hello gogap
 after hello
-return value is: ok
+ -> return value is: ok
 
-Pointcut: World()
+* Pointcut: World()
 before world
 hello world
+
+* Call by Proxy
+before hello 01 I AM Proxy
+before hello 02 I AM Proxy
+hello I AM Proxy
+after hello
+ -> return value is: ok
+
 ```

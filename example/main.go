@@ -59,19 +59,19 @@ func main() {
 
 	gogapAop.AddAspect(aspect)
 
-	fmt.Println("Pointcut: Hello()")
+	fmt.Println("* Pointcut: Hello()")
 	if err := gogapAop.Invoke(
 		"test_bean",       // bean id
 		"Hello",           // call func
 		aop.Args{"gogap"}, // args
 		func(ret string) { // the func return value
-			fmt.Println("return value is:", ret)
+			fmt.Println(" -> return value is:", ret)
 		}); err != nil {
 		fmt.Println("call error:", err)
 	}
 
 	fmt.Println("")
-	fmt.Println("Pointcut: World()")
+	fmt.Println("* Pointcut: World()")
 	if err := gogapAop.Invoke(
 		"test_bean", // bean id
 		"World",     // call func
@@ -80,4 +80,13 @@ func main() {
 		fmt.Println("call error:", err)
 	}
 
+	fmt.Println("")
+	fmt.Println("* Call by Proxy")
+	if proxy, err := gogapAop.GetProxy("test_bean"); err != nil {
+		fmt.Println(err)
+		return
+	} else {
+		ret := proxy.Method("Hello").(func(string) string)("I AM Proxy")
+		fmt.Println(" -> return value is:", ret)
+	}
 }

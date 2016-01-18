@@ -148,3 +148,16 @@ func (p *Bean) MustInvoke(methodName string, args Args, callback ...interface{})
 
 	return
 }
+
+func (p *Bean) Call(methodName string, args Args) []reflect.Value {
+	var beanValue reflect.Value
+
+	beanValue = reflect.ValueOf(p.instance)
+
+	inputs := make([]reflect.Value, len(args))
+	for i, _ := range args {
+		inputs[i] = reflect.ValueOf(args[i])
+	}
+
+	return beanValue.MethodByName(methodName).Call(inputs)
+}
