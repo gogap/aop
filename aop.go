@@ -63,47 +63,6 @@ func (p *AOP) invokeAdvices(ordering AdviceOrdering, bean *Bean, methodName stri
 	return
 }
 
-func (p *AOP) Invoke(beanID string, methodName string, args Args, callback ...interface{}) (err error) {
-	var bean *Bean
-
-	if bean, err = p.beanFactory.GetBean(beanID); err != nil {
-		return
-	}
-
-	//@Before
-	if err = p.invokeAdvices(Before, bean, methodName, args); err != nil {
-		return
-	}
-
-	// Call Bean Service
-	var retFunc func()
-	retFunc, err = bean.MustInvoke(methodName, args, callback...)
-
-	defer func() {
-		//@AfterPanic
-		if e := recover(); e != nil {
-			p.invokeAdvices(AfterPanic, bean, methodName, args)
-		}
-
-		//@After
-		err = p.invokeAdvices(After, bean, methodName, args)
-
-		if err == nil && retFunc != nil {
-			retFunc()
-		}
-	}()
-
-	if err != nil {
-		//@AfterError
-		p.invokeAdvices(AfterError, bean, methodName, args)
-	} else {
-		//@AfterReturning
-		p.invokeAdvices(AfterReturning, bean, methodName, args)
-	}
-
-	return
-}
-
 func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type) func([]reflect.Value) []reflect.Value {
 	beanValue := reflect.ValueOf(bean.instance)
 

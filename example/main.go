@@ -59,34 +59,25 @@ func main() {
 
 	gogapAop.AddAspect(aspect)
 
-	fmt.Println("* Pointcut: Hello()")
-	if err := gogapAop.Invoke(
-		"test_bean",       // bean id
-		"Hello",           // call func
-		aop.Args{"gogap"}, // args
-		func(ret string) { // the func return value
-			fmt.Println(" -> return value is:", ret)
-		}); err != nil {
-		fmt.Println("call error:", err)
+	// Get proxy
+	proxy, err := gogapAop.GetProxy("test_bean")
+
+	fmt.Println("* Call by Proxy with func type assertion")
+
+	ret := proxy.Method("Hello").(func(string) string)("I AM Proxy")
+	fmt.Println(" -> return value is:", ret)
+
+	fmt.Println("\n* Call by Proxy by Invoke with callback")
+
+	ret2 := ""
+	retCallback := func(v string) {
+		ret2 = v
 	}
 
-	fmt.Println("")
-	fmt.Println("* Pointcut: World()")
-	if err := gogapAop.Invoke(
-		"test_bean", // bean id
-		"World",     // call func
-		nil,         // args
-	); err != nil {
-		fmt.Println("call error:", err)
-	}
-
-	fmt.Println("")
-	fmt.Println("* Call by Proxy")
-	if proxy, err := gogapAop.GetProxy("test_bean"); err != nil {
+	if err = proxy.Invoke("Hello", "this is params").End(retCallback); err != nil {
 		fmt.Println(err)
 		return
 	} else {
-		ret := proxy.Method("Hello").(func(string) string)("I AM Proxy")
-		fmt.Println(" -> return value is:", ret)
+		fmt.Println(" -> return value is:", ret2)
 	}
 }
