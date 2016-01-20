@@ -92,3 +92,5 @@ func main() {
 }
 
 ```
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/gogap/aop/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
