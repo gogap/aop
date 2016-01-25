@@ -28,4 +28,5 @@ var (
 	ErrPointcutNotExist          = errors.TN(AOPErrorNamespace, 17, "point cut no exist, pointcut id: {{.id}}")
 	ErrMethodIsNil               = errors.TN(AOPErrorNamespace, 18, "method is nil")
 	ErrBadMethodType             = errors.TN(AOPErrorNamespace, 19, "method type error")
+	ErrBadPointcutExpr           = errors.TN(AOPErrorNamespace, 20, "bad pointcut expression, expression: {{.expr}}")
 )

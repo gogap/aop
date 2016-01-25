@@ -11,6 +11,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/gogap/aop"
 )
 
@@ -22,58 +23,59 @@ func (p *TestBean) Hello(name string) string {
 	return "ok"
 }
 
-func (p *TestBean) World() {
-	fmt.Println("hello", "world")
-	return
+func (p *TestBean) Before(name string) string {
+	fmt.Println("before hello", name)
+	return "before:I am ok"
 }
 
-func (p *TestBean) BeforeHello01(name string) string {
-	fmt.Println("before hello 01", name)
-	return "before:i am ok"
-}
-
-func (p *TestBean) BeforeHello02(name string) (err error) {
-	fmt.Println("before hello 02", name)
-	return nil
-}
-
-func (p *TestBean) BeforeWorld() string {
-	fmt.Println("before world")
-	return "before:i am ok"
-}
-
-func (p *TestBean) AfterHello() (err error) {
+func (p *TestBean) After() string {
 	fmt.Println("after hello")
-	return nil
+	return "after:I am ok"
+}
+
+type TestBean2 struct {
+}
+
+func (p *TestBean2) Foo() {
+	fmt.Println("Bar")
 }
 
 func main() {
 	beanFactory := aop.NewClassicBeanFactory()
-	beanFactory.RegisterBean("test_bean", "main.TestBean", new(TestBean))
+	beanFactory.RegisterBean("test_bean", new(TestBean))
+	beanFactory.RegisterBean("test_bean2", new(TestBean2))
 
 	gogapAop := aop.NewAOP()
 
 	gogapAop.SetBeanFactory(beanFactory)
 
-	aspect := aop.NewAspect("hello", "test_bean")
-	aspect.SetBeanFactory(beanFactory)
+	aspect1 := aop.NewAspect("hello", "test_bean")
+	aspect1.SetBeanFactory(beanFactory)
 
-	// BeforeHello01()-> BeforeHello02()-> Hello() -> AfterHello()
-	aspect.AddAdvice(&aop.Advice{Ordering: aop.Before, Method: "BeforeHello01", Pointcut: "Hello()"})
-	aspect.AddAdvice(&aop.Advice{Ordering: aop.Before, Method: "BeforeHello02", Pointcut: "Hello()"})
-	aspect.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "AfterHello", Pointcut: "Hello()"})
+	pointcut := aop.NewPointcut("pointcut_1", "execution (main.(TestBean).Hello())")
 
-	// BeforeWorld() -> World()
-	aspect.AddAdvice(&aop.Advice{Ordering: aop.Before, Method: "BeforeWorld", Pointcut: "World()"})
+	aspect1.AddPointcut(pointcut)
 
-	gogapAop.AddAspect(aspect)
+	// Before()-> Hello() -> After()
+	aspect1.AddAdvice(&aop.Advice{Ordering: aop.Before, Method: "Before", PointcutRefID: "pointcut_1"})
+	aspect1.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "After", PointcutRefID: "pointcut_1"})
+
+	gogapAop.AddAspect(aspect1)
+
+	aspect2 := aop.NewAspect("hello2", "test_bean2")
+	aspect2.SetBeanFactory(beanFactory)
+
+	// Before()-> Hello() -> After()
+	aspect2.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Foo", Pointcut: "execution(Hello())"})
+
+	gogapAop.AddAspect(aspect2)
 
 	// Get proxy
 	proxy, err := gogapAop.GetProxy("test_bean")
 
 	fmt.Println("* Call by Proxy with func type assertion")
 
-	ret := proxy.Method("Hello").(func(string) string)("I AM Proxy")
+	ret := proxy.Method(new(TestBean).Hello).(func(string) string)("I AM Proxy")
 	fmt.Println(" -> return value is:", ret)
 
 	fmt.Println("\n* Call by Proxy by Invoke with callback")
@@ -83,14 +85,13 @@ func main() {
 		ret2 = v
 	}
 
-	if err = proxy.Invoke("Hello", "this is params").End(retCallback); err != nil {
+	if err = proxy.Invoke(new(TestBean).Hello, "this is params").End(retCallback); err != nil {
 		fmt.Println(err)
 		return
 	} else {
 		fmt.Println(" -> return value is:", ret2)
 	}
 }
-
 ```
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/gogap/aop/trend.png)](https://bitdeli.com/free "Bitdeli Badge")

@@ -41,9 +41,9 @@ func (p *Aspect) BeanRefID() string {
 }
 
 func (p *Aspect) AddPointcut(pointcut *Pointcut) *Aspect {
-	if _, exist := p.pointcuts[pointcut.ID]; !exist {
-		p.pointcuts[pointcut.ID] = pointcut
-		p.pointcutIDs = append(p.pointcutIDs, pointcut.ID)
+	if _, exist := p.pointcuts[pointcut.ID()]; !exist {
+		p.pointcuts[pointcut.ID()] = pointcut
+		p.pointcutIDs = append(p.pointcutIDs, pointcut.ID())
 	}
 	return p
 }
@@ -63,7 +63,7 @@ func (p *Aspect) AddAdvice(advice *Advice) *Aspect {
 			panic(ErrPointcutNotExist.New(errors.Params{"id": advice.PointcutRefID}))
 		}
 	} else {
-		advice.pointcut = &Pointcut{Expression: advice.Pointcut}
+		advice.pointcut = NewPointcut("_", advice.Pointcut)
 	}
 
 	advice.beanRef = beanRef

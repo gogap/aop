@@ -43,7 +43,7 @@ func main() {
 	aspect1 := aop.NewAspect("hello", "test_bean")
 	aspect1.SetBeanFactory(beanFactory)
 
-	pointcut := aop.NewPointcut("pointcut_1", ".*?")
+	pointcut := aop.NewPointcut("pointcut_1", "execution (main.(TestBean).Hello())")
 
 	aspect1.AddPointcut(pointcut)
 
@@ -56,8 +56,8 @@ func main() {
 	aspect2 := aop.NewAspect("hello2", "test_bean2")
 	aspect2.SetBeanFactory(beanFactory)
 
-	// BeforeHello01()-> BeforeHello02()-> Hello() -> AfterHello()
-	aspect2.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Foo", Pointcut: ".*?"})
+	// Before()-> Hello() -> After()
+	aspect2.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Foo", Pointcut: "execution(Hello())"})
 
 	gogapAop.AddAspect(aspect2)
 

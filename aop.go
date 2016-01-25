@@ -30,9 +30,15 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 	beanValue := reflect.ValueOf(bean.instance)
 
 	return func(inputs []reflect.Value) (ret []reflect.Value) {
+		var err error
+		defer func() {
+			if err != nil {
+				panic(err)
+			}
+		}()
 
 		var args Args
-		var err error
+
 		for _, arg := range inputs {
 			args = append(args, arg.Interface())
 		}
