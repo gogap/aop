@@ -25,4 +25,7 @@ var (
 	ErrInvokeFuncTypeError       = errors.TN(AOPErrorNamespace, 14, "invoke func is not func type, bean id: {{.id}}, method: {{.method}}")
 	ErrEndInvokeTwice            = errors.TN(AOPErrorNamespace, 15, "end invoke twice, bean id: {{.id}}, method: {{.method}}")
 	ErrBadInvokeMethodType       = errors.TN(AOPErrorNamespace, 16, "invoke method params should be func name or func type")
+	ErrPointcutNotExist          = errors.TN(AOPErrorNamespace, 17, "point cut no exist, pointcut id: {{.id}}")
+	ErrMethodIsNil               = errors.TN(AOPErrorNamespace, 18, "method is nil")
+	ErrBadMethodType             = errors.TN(AOPErrorNamespace, 19, "method type error")
 )

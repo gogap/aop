@@ -26,43 +26,6 @@ func (p *AOP) AddAspect(aspect *Aspect) *AOP {
 	return p
 }
 
-func (p *AOP) invokeAdvices(ordering AdviceOrdering, bean *Bean, methodName string, args Args) (err error) {
-	var callAdvices []*Advice
-	for _, aspect := range p.aspects {
-		var advices []*Advice
-		if advices, err = aspect.GetMatchedAdvices(ordering, bean, methodName, args); err != nil {
-			return
-		}
-
-		callAdvices = append(callAdvices, advices...)
-	}
-
-	for _, advice := range callAdvices {
-		var retFunc func()
-		if _, err = advice.beanRef.Invoke(advice.Method, args, func(values ...interface{}) {
-			if values != nil {
-				for _, v := range values {
-					if errV, ok := v.(error); ok {
-						err = errV
-					}
-				}
-			}
-
-			if err != nil {
-				return
-			}
-		}); err != nil {
-			return
-		}
-
-		if retFunc != nil {
-			retFunc()
-		}
-	}
-
-	return
-}
-
 func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type) func([]reflect.Value) []reflect.Value {
 	beanValue := reflect.ValueOf(bean.instance)
 
@@ -90,32 +53,53 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 			ret[i] = reflect.Zero(methodType.Out(i))
 		}
 
-		//@Before
-		if err = p.invokeAdvices(Before, bean, methodName, args); err != nil {
-			if errOutIndex >= 0 {
-				ret[errOutIndex] = reflect.ValueOf(&err).Elem()
+		var advicesGroup []map[AdviceOrdering][]*Advice
+		for _, aspect := range p.aspects {
+			var advices map[AdviceOrdering][]*Advice
+			if advices, err = aspect.GetMatchedAdvices(bean, methodName, args); err != nil {
+				return
+			}
+
+			advicesGroup = append(advicesGroup, advices)
+		}
+
+		callAdvicesFunc := func(order AdviceOrdering) (err error) {
+			for _, advices := range advicesGroup {
+				if err = invokeAdvices(advices[order], bean, methodName, args); err != nil {
+					if errOutIndex >= 0 {
+						ret[errOutIndex] = reflect.ValueOf(&err).Elem()
+					}
+					return
+				}
 			}
 			return
 		}
 
-		retValues := beanValue.MethodByName(methodName).Call(inputs)
+		//@Before
+		if err = callAdvicesFunc(Before); err != nil {
+			return
+		}
+
+		//@Normal func
+		funcInSturctName := getFuncNameByStructFuncName(methodName)
+		retValues := beanValue.MethodByName(funcInSturctName).Call(inputs)
 
 		defer func() {
 			//@AfterPanic
 			if e := recover(); e != nil {
-				p.invokeAdvices(AfterPanic, bean, methodName, args)
+				callAdvicesFunc(AfterPanic)
 			}
 
 			//@After
-			p.invokeAdvices(After, bean, methodName, args)
+			callAdvicesFunc(After)
 		}()
 
 		if err != nil {
 			//@AfterError
-			p.invokeAdvices(AfterError, bean, methodName, args)
+			callAdvicesFunc(AfterError)
 		} else {
 			//@AfterReturning
-			p.invokeAdvices(AfterReturning, bean, methodName, args)
+			callAdvicesFunc(AfterReturning)
 		}
 
 		return retValues
@@ -139,10 +123,17 @@ func (p *AOP) GetProxy(beanID string) (proxy *Proxy, err error) {
 
 		mType := methodV.Type()
 
-		newFunc := p.funcWrapper(bean, methodT.Name, mType)
+		var metadata MethodMetadata
+		if metadata, err = getMethodMetadata(methodT.Func.Interface()); err != nil {
+			return
+		}
+
+		newFunc := p.funcWrapper(bean, metadata.MethodName, mType)
 		funcV := reflect.MakeFunc(mType, newFunc)
 
-		tmpProxy.registryFunc(methodT.Name, funcV.Interface())
+		metadata.method = funcV.Interface() // rewrite to new proxy func
+
+		tmpProxy.registryFunc(metadata)
 	}
 
 	proxy = tmpProxy

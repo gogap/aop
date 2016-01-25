@@ -5,7 +5,7 @@ import (
 )
 
 type BeanFactory interface {
-	RegisterBean(id string, class string, value interface{}) BeanFactory
+	RegisterBean(id string, value interface{}) BeanFactory
 	GetBean(id string) (bean *Bean, err error)
 }
 
@@ -36,7 +36,7 @@ func (p *ClassicBeanFactory) GetBean(id string) (bean *Bean, err error) {
 	return nil, ErrBeanNotExist.New(errors.Params{"id": id})
 }
 
-func (p *ClassicBeanFactory) RegisterBean(id string, class string, beanInstance interface{}) (factory BeanFactory) {
+func (p *ClassicBeanFactory) RegisterBean(id string, beanInstance interface{}) (factory BeanFactory) {
 	var err error
 
 	defer func() {
@@ -51,7 +51,7 @@ func (p *ClassicBeanFactory) RegisterBean(id string, class string, beanInstance 
 	}
 
 	var bean *Bean
-	if bean, err = NewBean(id, class, beanInstance); err != nil {
+	if bean, err = NewBean(id, beanInstance); err != nil {
 		return
 	}
 

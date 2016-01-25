@@ -12,36 +12,12 @@ const (
 )
 
 type Advice struct {
-	Ordering    AdviceOrdering
-	Method      string
-	Pointcut    string
-	PointcutRef *Pointcut
+	Ordering AdviceOrdering
+	Method   string
 
-	beanRef *Bean
-}
+	Pointcut      string
+	PointcutRefID string
 
-func (p *Advice) IsMatch(ordering AdviceOrdering, bean *Bean, methodName string, args Args) (isMatch bool, err error) {
-	if !(ordering == Before && p.Ordering == Around) &&
-		!(ordering == After && p.Ordering == Around) &&
-		ordering != p.Ordering {
-		return
-	}
-
-	if p.Pointcut != "" {
-		if methodName+"()" == p.Pointcut {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-
-	if p.PointcutRef != nil {
-		if methodName+"()" == p.PointcutRef.Expression {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-
-	return
+	beanRef  *Bean
+	pointcut *Pointcut
 }

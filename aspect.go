@@ -1,12 +1,19 @@
 package aop
 
+import (
+	"github.com/gogap/errors"
+)
+
 type Args []interface{}
 
 type Aspect struct {
 	id          string
-	advices     map[AdviceOrdering][]*Advice
 	beanRefID   string
 	beanFactory BeanFactory
+
+	pointcutIDs []string
+	pointcuts   map[string]*Pointcut
+	advices     []*Advice
 }
 
 func NewAspect(id, beanRefID string) *Aspect {
@@ -21,7 +28,7 @@ func NewAspect(id, beanRefID string) *Aspect {
 	return &Aspect{
 		id:        id,
 		beanRefID: beanRefID,
-		advices:   make(map[AdviceOrdering][]*Advice),
+		pointcuts: make(map[string]*Pointcut),
 	}
 }
 
@@ -33,6 +40,14 @@ func (p *Aspect) BeanRefID() string {
 	return p.beanRefID
 }
 
+func (p *Aspect) AddPointcut(pointcut *Pointcut) *Aspect {
+	if _, exist := p.pointcuts[pointcut.ID]; !exist {
+		p.pointcuts[pointcut.ID] = pointcut
+		p.pointcutIDs = append(p.pointcutIDs, pointcut.ID)
+	}
+	return p
+}
+
 func (p *Aspect) AddAdvice(advice *Advice) *Aspect {
 	var beanRef *Bean
 	var err error
@@ -41,8 +56,19 @@ func (p *Aspect) AddAdvice(advice *Advice) *Aspect {
 		panic(err)
 	}
 
+	if advice.PointcutRefID != "" {
+		if pointcut, exist := p.pointcuts[advice.PointcutRefID]; exist {
+			advice.pointcut = pointcut
+		} else {
+			panic(ErrPointcutNotExist.New(errors.Params{"id": advice.PointcutRefID}))
+		}
+	} else {
+		advice.pointcut = &Pointcut{Expression: advice.Pointcut}
+	}
+
 	advice.beanRef = beanRef
-	p.advices[advice.Ordering] = append(p.advices[advice.Ordering], advice)
+	p.advices = append(p.advices, advice)
+
 	return p
 }
 
@@ -51,32 +77,19 @@ func (p *Aspect) SetBeanFactory(factory BeanFactory) {
 	return
 }
 
-func filterAdvices(advices []*Advice) (matchedAdvices []*Advice, err error) {
-	// check call stack, make sure not have cycle call
+func (p *Aspect) GetMatchedAdvices(bean *Bean, methodName string, args Args) (advices map[AdviceOrdering][]*Advice, err error) {
+	var advs map[AdviceOrdering][]*Advice = make(map[AdviceOrdering][]*Advice)
 
-	return
-}
-
-func (p *Aspect) GetMatchedAdvices(ordering AdviceOrdering, bean *Bean, methodName string, args Args) (advices []*Advice, err error) {
-	var advs []*Advice
-	var exist bool
-
-	if advs, exist = p.advices[ordering]; !exist {
-		return
-	}
-
-	var retAdvs []*Advice
-
-	for _, adv := range advs {
-		var match bool
-		if match, err = adv.IsMatch(ordering, bean, methodName, args); err != nil {
+	for _, advice := range p.advices {
+		matched := false
+		if matched, err = advice.pointcut.IsMatch(bean, methodName, args); err != nil {
 			return
-		} else if match {
-			retAdvs = append(retAdvs, adv)
+		} else if matched {
+			advs[advice.Ordering] = append(advs[advice.Ordering], advice)
 		}
 	}
 
-	advices = retAdvs
+	advices = advs
 
 	return
 }

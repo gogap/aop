@@ -12,7 +12,7 @@ type Bean struct {
 	instance interface{}
 }
 
-func NewBean(id, class string, instance interface{}) (bean *Bean, err error) {
+func NewBean(id string, instance interface{}) (bean *Bean, err error) {
 	if id == "" {
 		err = ErrBeanIDShouldNotBeEmpty.New()
 		return
@@ -26,6 +26,11 @@ func NewBean(id, class string, instance interface{}) (bean *Bean, err error) {
 	v := reflect.ValueOf(instance)
 	if v.Kind() != reflect.Ptr {
 		err = ErrBeanIsNotAnPtr.New(errors.Params{"id": id})
+		return
+	}
+
+	class := ""
+	if class, err = getFullStructName(instance); err != nil {
 		return
 	}
 
@@ -58,7 +63,7 @@ func (p *Bean) Invoke(methodName string, args Args, callback ...interface{}) (re
 
 	if method, exist := beanType.MethodByName(methodName); !exist {
 		err = ErrBeanMethodNotExit.New(errors.Params{"id": p.id, "class": p.class, "method": methodName})
-		return
+		panic(err)
 	} else {
 		if method.Type.NumIn() == len(args)+1 {
 			isSameArgs = true
@@ -89,7 +94,6 @@ func (p *Bean) Invoke(methodName string, args Args, callback ...interface{}) (re
 		for i, _ := range args {
 			inputs[i] = reflect.ValueOf(args[i])
 		}
-
 		values = beanValue.MethodByName(methodName).Call(inputs)
 	} else {
 		values = beanValue.MethodByName(methodName).Call([]reflect.Value{})
