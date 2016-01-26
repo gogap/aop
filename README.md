@@ -152,6 +152,71 @@ pointcut.Execution(`Login()`).WithIn(`example/aop/main`)
 
 ```
 
+#### Do not want to func type assertion
+
+```go
+proxy.Invoke(new(Auth).Login, "zeal", "errorpassword").End(
+		func(result bool) {
+			login = result
+		})
+```
+
+#### Weaving other beans into aspect
+
+##### define a bean
+
+```go
+type Foo struct {
+}
+
+func (p *Foo) Bar() {
+	fmt.Println("I am Foo.Bar")
+}
+```
+
+##### register bean
+
+```go
+beanFactory.RegisterBean("foo", new(Foo))
+```
+
+##### create aspect
+```go
+aspectFoo := aop.NewAspect("aspect_2", "foo")
+aspectFoo.SetBeanFactory(beanFactory)
+```
+
+
+##### add advice
+
+```go
+aspectFoo.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Bar", PointcutRefID: "pointcut_1"})
+```
+
+##### add aspect into aop
+
+```go
+gogapAop.AddAspect(aspectFoo)
+```
+
+result
+
+```bash
+zeal begin login
+zeal logged in
+I am Foo.Bar
+login result: true
+```
+
+stacktrace
+
+```bash
+1 aqjpeorhssa4p7c0ndf0 auth main.(Auth).Login Before
+2 aqjpeorhssa4p7c0ndf0 auth main.(Auth).Login *Login
+3 aqjpeorhssa4p7c0ndf0 auth main.(Auth).Login After
+4 aqjpeorhssa4p7c0ndf0 foo main.(Auth).Login Bar
+```
+
 #### Turn on trace for debug
 
 ```go

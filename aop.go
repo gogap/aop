@@ -75,12 +75,13 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 			advicesGroup = append(advicesGroup, advices)
 		}
 
-		callAdvicesFunc := func(order AdviceOrdering) (err error) {
+		callAdvicesFunc := func(order AdviceOrdering) (e error) {
 			for _, advices := range advicesGroup {
-				if err = invokeAdvices(invokeID, advices[order], bean, methodName, args); err != nil {
+				if e = invokeAdvices(invokeID, advices[order], bean, methodName, args); e != nil {
 					if errOutIndex >= 0 {
-						ret[errOutIndex] = reflect.ValueOf(&err).Elem()
+						ret[errOutIndex] = reflect.ValueOf(&e).Elem()
 					}
+					err = e
 					return
 				}
 			}
