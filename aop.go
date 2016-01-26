@@ -1,6 +1,7 @@
 package aop
 
 import (
+	"github.com/rs/xid"
 	"reflect"
 )
 
@@ -30,6 +31,11 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 	beanValue := reflect.ValueOf(bean.instance)
 
 	return func(inputs []reflect.Value) (ret []reflect.Value) {
+		invokeID := ""
+		if IsTracing() {
+			invokeID = xid.New().String()
+		}
+
 		var err error
 		defer func() {
 			if err != nil {
@@ -71,7 +77,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 
 		callAdvicesFunc := func(order AdviceOrdering) (err error) {
 			for _, advices := range advicesGroup {
-				if err = invokeAdvices(advices[order], bean, methodName, args); err != nil {
+				if err = invokeAdvices(invokeID, advices[order], bean, methodName, args); err != nil {
 					if errOutIndex >= 0 {
 						ret[errOutIndex] = reflect.ValueOf(&err).Elem()
 					}
@@ -89,6 +95,15 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 		//@Normal func
 		funcInSturctName := getFuncNameByStructFuncName(methodName)
 		retValues := beanValue.MethodByName(funcInSturctName).Call(inputs)
+
+		if IsTracing() {
+			var metadata MethodMetadata
+			if metadata, err = bean.methodMetadata(funcInSturctName); err != nil {
+				return
+			}
+
+			appendTraceItem(invokeID, metadata.File, metadata.Line, "*"+funcInSturctName, methodName, bean.id)
+		}
 
 		defer func() {
 			//@AfterPanic

@@ -51,6 +51,21 @@ func (p *Bean) Class() string {
 	return p.class
 }
 
+func (p *Bean) methodMetadata(methodName string) (metadata MethodMetadata, err error) {
+	beanType := reflect.TypeOf(p.instance)
+
+	var method reflect.Method
+	exist := false
+	if method, exist = beanType.MethodByName(methodName); !exist {
+		err = ErrBeanMethodNotExit.New(errors.Params{"id": p.id, "class": p.class, "method": methodName})
+		return
+	}
+
+	metadata, err = getMethodMetadata(method.Func.Interface())
+
+	return
+}
+
 func (p *Bean) Invoke(methodName string, args Args, callback ...interface{}) (returnFunc func(), err error) {
 
 	var beanType reflect.Type

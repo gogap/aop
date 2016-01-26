@@ -56,14 +56,15 @@ func (p *Aspect) AddAdvice(advice *Advice) *Aspect {
 		panic(err)
 	}
 
-	if advice.PointcutRefID != "" {
-		if pointcut, exist := p.pointcuts[advice.PointcutRefID]; exist {
-			advice.pointcut = pointcut
-		} else {
-			panic(ErrPointcutNotExist.New(errors.Params{"id": advice.PointcutRefID}))
-		}
+	if advice.PointcutRefID == "" {
+		err = ErrEmptyPointcutRefID.New()
+		panic(err)
+	}
+
+	if pointcut, exist := p.pointcuts[advice.PointcutRefID]; exist {
+		advice.pointcut = pointcut
 	} else {
-		advice.pointcut = NewPointcut("_", advice.Pointcut)
+		panic(ErrPointcutNotExist.New(errors.Params{"id": advice.PointcutRefID}))
 	}
 
 	advice.beanRef = beanRef
@@ -81,10 +82,7 @@ func (p *Aspect) GetMatchedAdvices(bean *Bean, methodName string, args Args) (ad
 	var advs map[AdviceOrdering][]*Advice = make(map[AdviceOrdering][]*Advice)
 
 	for _, advice := range p.advices {
-		matched := false
-		if matched, err = advice.pointcut.IsMatch(bean, methodName, args); err != nil {
-			return
-		} else if matched {
+		if advice.pointcut.IsMatch(bean, methodName, args) {
 			advs[advice.Ordering] = append(advs[advice.Ordering], advice)
 		}
 	}

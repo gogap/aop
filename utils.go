@@ -29,9 +29,17 @@ func getMethodMetadata(method interface{}) (metadata MethodMetadata, err error) 
 	return
 }
 
-func invokeAdvices(advices []*Advice, bean *Bean, methodName string, args Args) (err error) {
+func invokeAdvices(invokeID string, advices []*Advice, bean *Bean, methodName string, args Args) (err error) {
 	for _, advice := range advices {
 		var retFunc func()
+		if IsTracing() {
+			var metadata MethodMetadata
+			if metadata, err = advice.beanRef.methodMetadata(advice.Method); err != nil {
+				return
+			}
+
+			appendTraceItem(invokeID, metadata.File, metadata.Line, advice.Method, methodName, advice.beanRef.ID())
+		}
 		if _, err = advice.beanRef.Invoke(advice.Method, args, func(values ...interface{}) {
 			if values != nil {
 				for _, v := range values {

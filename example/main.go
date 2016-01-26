@@ -14,6 +14,11 @@ func (p *TestBean) Hello(name string) string {
 	return "ok"
 }
 
+func (p *TestBean) World(name string) string {
+	fmt.Println("world", name)
+	return "ok"
+}
+
 func (p *TestBean) Before(name string) string {
 	fmt.Println("before hello", name)
 	return "before:I am ok"
@@ -43,7 +48,7 @@ func main() {
 	aspect1 := aop.NewAspect("hello", "test_bean")
 	aspect1.SetBeanFactory(beanFactory)
 
-	pointcut := aop.NewPointcut("pointcut_1", "execution (main.(TestBean).Hello())")
+	pointcut := aop.NewPointcut("pointcut_1").Execution(`.*()`).NotExecution(`World()`).Bean("test_*").Within("aop/example/main")
 
 	aspect1.AddPointcut(pointcut)
 
@@ -55,11 +60,14 @@ func main() {
 
 	aspect2 := aop.NewAspect("hello2", "test_bean2")
 	aspect2.SetBeanFactory(beanFactory)
+	aspect2.AddPointcut(pointcut)
 
 	// Before()-> Hello() -> After()
-	aspect2.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Foo", Pointcut: "execution(Hello())"})
+	aspect2.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Foo", PointcutRefID: "pointcut_1"})
 
 	gogapAop.AddAspect(aspect2)
+
+	aop.StartTrace()
 
 	// Get proxy
 	proxy, err := gogapAop.GetProxy("test_bean")
@@ -81,5 +89,13 @@ func main() {
 		return
 	} else {
 		fmt.Println(" -> return value is:", ret2)
+	}
+
+	if t, e := aop.StopTrace(); e != nil {
+		fmt.Println(e)
+	} else {
+		for _, item := range t.Items() {
+			fmt.Println(item.ID, item.InvokeID, item.Pointcut, item.BeanRefID, item.Method)
+		}
 	}
 }

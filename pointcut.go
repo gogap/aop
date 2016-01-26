@@ -2,83 +2,150 @@ package aop
 
 import (
 	"regexp"
+	"runtime"
 	"strings"
-
-	"github.com/gogap/errors"
+	"sync"
 )
 
 type Pointcut struct {
-	id         string
-	expression string
+	id string
 
-	execExpr   string
-	withinExpr string
+	executionExprs    []*regexp.Regexp
+	notExecutionExprs []*regexp.Regexp
+	byBeans           []*regexp.Regexp
+	notByBeans        []*regexp.Regexp
+	withIn            []*regexp.Regexp
+	notWithIn         []*regexp.Regexp
+
+	exprLocker sync.Mutex
 }
 
-func NewPointcut(id, expr string) *Pointcut {
-	regex := regexp.MustCompile(`execution\s?\((.*)\(\)\)`)
+func (p *Pointcut) Execution(expr string) *Pointcut {
+	p.exprLocker.Lock()
+	defer p.exprLocker.Unlock()
 
-	execExprs := regex.FindStringSubmatch(expr)
-	if len(execExprs) != 2 {
-		err := ErrBadPointcutExpr.New(errors.Params{"expr": expr})
-		panic(err)
+	p.executionExprs = append(p.executionExprs, regexp.MustCompile(expr))
+	return p
+}
+
+func (p *Pointcut) NotExecution(expr string) *Pointcut {
+	p.exprLocker.Lock()
+	defer p.exprLocker.Unlock()
+
+	p.notExecutionExprs = append(p.notExecutionExprs, regexp.MustCompile(expr))
+	return p
+}
+
+func (p *Pointcut) Bean(expr string) *Pointcut {
+	p.exprLocker.Lock()
+	defer p.exprLocker.Unlock()
+
+	p.byBeans = append(p.byBeans, regexp.MustCompile(expr))
+	return p
+}
+
+func (p *Pointcut) NotBean(expr string) *Pointcut {
+	p.exprLocker.Lock()
+	defer p.exprLocker.Unlock()
+
+	p.notByBeans = append(p.notByBeans, regexp.MustCompile(expr))
+	return p
+}
+
+func (p *Pointcut) Within(expr string) *Pointcut {
+	p.exprLocker.Lock()
+	defer p.exprLocker.Unlock()
+
+	p.withIn = append(p.withIn, regexp.MustCompile(expr))
+	return p
+}
+
+func (p *Pointcut) NotWithin(expr string) *Pointcut {
+	p.exprLocker.Lock()
+	defer p.exprLocker.Unlock()
+
+	p.notWithIn = append(p.notWithIn, regexp.MustCompile(expr))
+	return p
+}
+
+func NewPointcut(id string) *Pointcut {
+	return &Pointcut{
+		id: id,
 	}
-	return &Pointcut{id: id, expression: expr, execExpr: execExprs[1]}
 }
 
 func (p *Pointcut) ID() string {
 	return p.id
 }
 
-func (p *Pointcut) Expression() string {
-	return p.expression
-}
+func (p *Pointcut) IsMatch(bean *Bean, methodName string, args Args) bool {
 
-func (p *Pointcut) IsMatch(bean *Bean, methodName string, args Args) (matched bool, err error) {
-	// match execution
-	return p.isExecExprMatch(bean, methodName, args)
-}
-
-func (p *Pointcut) isExecExprMatch(bean *Bean, methodName string, args Args) (matched bool, err error) {
-	if methodName == p.execExpr {
-		return true, nil
-	} else {
-		indexExprPkg := strings.LastIndex(p.execExpr, ".")
-		indexMethodPkg := strings.LastIndex(methodName, ".")
-
-		expr := p.execExpr
-		if indexExprPkg < 0 {
-			expr = methodName[:indexMethodPkg] + "." + expr
-			indexExprPkg = indexMethodPkg
+	// not execution
+	for _, notExecRegex := range p.notExecutionExprs {
+		if notExecRegex.MatchString(methodName) {
+			return false
 		}
-
-		execExprPkg := expr[:indexExprPkg]
-		methodPkg := methodName[:indexMethodPkg]
-
-		pkgExprMatch := false
-		if pkgExprMatch, err = regexp.MatchString(execExprPkg, methodPkg); err != nil {
-			return
-		} else if pkgExprMatch {
-			return true, nil
-		}
-
-		if execExprPkg == methodPkg ||
-			pkgExprMatch == true {
-
-			execExprFn := expr[strings.LastIndex(expr, ".")+1:]
-			methodFn := methodName[strings.LastIndex(methodName, ".")+1:]
-
-			fnExprMatch := false
-			if fnExprMatch, err = regexp.MatchString(execExprFn, methodFn); err != nil {
-				return
-			}
-
-			if fnExprMatch || execExprFn == methodFn {
-				return true, nil
-			}
-		}
-
-		return false, nil
 	}
-	return false, nil
+
+	// execution
+	execGot := false
+	for _, execRegex := range p.executionExprs {
+		if execRegex.MatchString(methodName) {
+			execGot = true
+			break
+		}
+	}
+
+	if !execGot {
+		return false
+	}
+
+	// not bean
+	for _, notBeanRegex := range p.notByBeans {
+		if notBeanRegex.MatchString(bean.id) {
+			return false
+		}
+	}
+
+	// bean
+	beanGot := false
+	for _, beanRegex := range p.byBeans {
+		if beanRegex.MatchString(bean.id) {
+			beanGot = true
+			break
+		}
+	}
+
+	if !beanGot {
+		return false
+	}
+
+	stacks := ""
+	if len(p.notWithIn) > 0 || len(p.withIn) > 0 {
+		buf := make([]byte, 4096)
+		runtime.Stack(buf, false)
+		stacks = strings.Replace(string(buf), "*", "", -1)
+	}
+
+	// not within
+	for _, notWithInRegex := range p.notWithIn {
+		if notWithInRegex.MatchString(stacks) {
+			return false
+		}
+	}
+
+	// with in
+	withInGot := false
+	for _, withInRegex := range p.withIn {
+		if withInRegex.MatchString(stacks) {
+			withInGot = true
+			break
+		}
+	}
+
+	if !withInGot {
+		return false
+	}
+
+	return true
 }
