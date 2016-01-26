@@ -83,7 +83,7 @@ func (p *Proxy) Invoke(method interface{}, args ...interface{}) (result *InvokeR
 	}
 
 	inputs := make([]reflect.Value, len(args))
-	for i, _ := range args {
+	for i := range args {
 		inputs[i] = reflect.ValueOf(args[i])
 	}
 

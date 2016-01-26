@@ -106,7 +106,7 @@ func (p *Bean) Invoke(methodName string, args Args, callback ...interface{}) (re
 
 	if isSameArgs {
 		inputs := make([]reflect.Value, len(args))
-		for i, _ := range args {
+		for i := range args {
 			inputs[i] = reflect.ValueOf(args[i])
 		}
 		values = beanValue.MethodByName(methodName).Call(inputs)
@@ -141,7 +141,7 @@ func (p *Bean) MustInvoke(methodName string, args Args, callback ...interface{})
 	beanValue = reflect.ValueOf(p.instance)
 
 	inputs := make([]reflect.Value, len(args))
-	for i, _ := range args {
+	for i := range args {
 		inputs[i] = reflect.ValueOf(args[i])
 	}
 
@@ -174,7 +174,7 @@ func (p *Bean) Call(methodName string, args Args) []reflect.Value {
 	beanValue = reflect.ValueOf(p.instance)
 
 	inputs := make([]reflect.Value, len(args))
-	for i, _ := range args {
+	for i := range args {
 		inputs[i] = reflect.ValueOf(args[i])
 	}
 
