@@ -108,16 +108,18 @@ func (p *Pointcut) IsMatch(bean *Bean, methodName string, args Args) bool {
 	}
 
 	// bean
-	beanGot := false
-	for _, beanRegex := range p.byBeans {
-		if beanRegex.MatchString(bean.id) {
-			beanGot = true
-			break
+	if len(p.byBeans) > 0 {
+		beanGot := false
+		for _, beanRegex := range p.byBeans {
+			if beanRegex.MatchString(bean.id) {
+				beanGot = true
+				break
+			}
 		}
-	}
 
-	if !beanGot {
-		return false
+		if !beanGot {
+			return false
+		}
 	}
 
 	stacks := ""
@@ -135,16 +137,18 @@ func (p *Pointcut) IsMatch(bean *Bean, methodName string, args Args) bool {
 	}
 
 	// with in
-	withInGot := false
-	for _, withInRegex := range p.withIn {
-		if withInRegex.MatchString(stacks) {
-			withInGot = true
-			break
+	if len(p.withIn) > 0 {
+		withInGot := false
+		for _, withInRegex := range p.withIn {
+			if withInRegex.MatchString(stacks) {
+				withInGot = true
+				break
+			}
 		}
-	}
 
-	if !withInGot {
-		return false
+		if !withInGot {
+			return false
+		}
 	}
 
 	return true
