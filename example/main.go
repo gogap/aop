@@ -9,26 +9,37 @@ import (
 type Auth struct {
 }
 
-func (p *Auth) Login(userName string, password string) bool {
+func (p *Auth) Login(userName, password string) bool {
 	if userName == "zeal" && password == "gogap" {
 		return true
 	}
 	return false
 }
 
-func (p *Auth) Before(username string, password string) {
-	fmt.Println(username, "begin login")
+// use join point to get Args from real method
+func (p *Auth) Before(jp aop.JoinPointer) {
+	username := ""
+	jp.Args().MapTo(func(u, p string) {
+		username = u
+	})
+
+	fmt.Printf("Before Login: %s\n", username)
 }
 
-func (p *Auth) After(username string, password string) {
-	fmt.Println(username, "logged in")
+// the args is same as Login
+func (p *Auth) After(username, password string) {
+	fmt.Printf("After Login: %s %s\n", username, password)
 }
 
 type Foo struct {
 }
 
-func (p *Foo) Bar() {
-	fmt.Println("I am Foo.Bar")
+// @AfterReturning, the method could have args of aop.Result,
+// it will get the result from real func return values
+func (p *Foo) Bar(result aop.Result) {
+	result.MapTo(func(v bool) {
+		fmt.Println("Bar Bar Bar .... Result is:", v)
+	})
 }
 
 func main() {
@@ -50,7 +61,7 @@ func main() {
 
 	aspect.AddAdvice(&aop.Advice{Ordering: aop.Before, Method: "Before", PointcutRefID: "pointcut_1"})
 	aspect.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "After", PointcutRefID: "pointcut_1"})
-	aspectFoo.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Bar", PointcutRefID: "pointcut_1"})
+	aspectFoo.AddAdvice(&aop.Advice{Ordering: aop.AfterReturning, Method: "Bar", PointcutRefID: "pointcut_1"})
 
 	gogapAop := aop.NewAOP()
 	gogapAop.SetBeanFactory(beanFactory)
@@ -69,9 +80,13 @@ func main() {
 	// start trace for debug
 	aop.StartTrace()
 
+	fmt.Println("==========Func Type Assertion==========")
+
 	login := proxy.Method(new(Auth).Login).(func(string, string) bool)("zeal", "gogap")
 
-	fmt.Println("login result:", login)
+	fmt.Println("Login result:", login)
+
+	fmt.Println("================Invoke=================")
 
 	if err = proxy.Invoke(new(Auth).Login, "zeal", "errorpassword").End(
 		func(result bool) {
@@ -79,7 +94,7 @@ func main() {
 		}); err != nil {
 		fmt.Println("invoke proxy func error", err)
 	} else {
-		fmt.Println("login result:", login)
+		fmt.Println("Login result:", login)
 	}
 
 	t, _ := aop.StopTrace()

@@ -4,8 +4,6 @@ import (
 	"github.com/gogap/errors"
 )
 
-type Args []interface{}
-
 type Aspect struct {
 	id          string
 	beanRefID   string

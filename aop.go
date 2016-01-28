@@ -31,10 +31,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 	beanValue := reflect.ValueOf(bean.instance)
 
 	return func(inputs []reflect.Value) (ret []reflect.Value) {
-		invokeID := ""
-		if IsTracing() {
-			invokeID = xid.New().String()
-		}
+		callID := xid.New().String()
 
 		var err error
 		defer func() {
@@ -47,6 +44,12 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 
 		for _, arg := range inputs {
 			args = append(args, arg.Interface())
+		}
+
+		joinPoint := JoinPoint{
+			callID: callID,
+			args:   args,
+			target: bean,
 		}
 
 		errOutIndex := -1
@@ -75,9 +78,17 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 			advicesGroup = append(advicesGroup, advices)
 		}
 
-		callAdvicesFunc := func(order AdviceOrdering) (e error) {
+		callAdvicesFunc := func(order AdviceOrdering, retValues ...reflect.Value) (e error) {
+
+			var result Result
+			if order == AfterReturning {
+				for _, v := range retValues {
+					result = append(result, v.Interface())
+				}
+			}
+
 			for _, advices := range advicesGroup {
-				if e = invokeAdvices(invokeID, advices[order], bean, methodName, args); e != nil {
+				if e = invokeAdvices(&joinPoint, advices[order], methodName, result); e != nil {
 					if errOutIndex >= 0 {
 						ret[errOutIndex] = reflect.ValueOf(&e).Elem()
 					}
@@ -103,7 +114,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 				return
 			}
 
-			appendTraceItem(invokeID, metadata.File, metadata.Line, "*"+funcInSturctName, methodName, bean.id)
+			appendTraceItem(callID, metadata.File, metadata.Line, "*"+funcInSturctName, methodName, bean.id)
 		}
 
 		defer func() {
@@ -121,7 +132,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 			callAdvicesFunc(AfterError)
 		} else {
 			//@AfterReturning
-			callAdvicesFunc(AfterReturning)
+			callAdvicesFunc(AfterReturning, retValues...)
 		}
 
 		return retValues

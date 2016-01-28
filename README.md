@@ -13,19 +13,26 @@ Aspect Oriented Programming For Golang
 type Auth struct {
 }
 
-func (p *Auth) Login(userName string, password string) bool {
+func (p *Auth) Login(userName, password string) bool {
 	if userName == "zeal" && password == "gogap" {
 		return true
 	}
 	return false
 }
 
-func (p *Auth) Before(username string, password string) {
-	fmt.Println(username, "begin login")
+// use join point to get Args from real method
+func (p *Auth) Before(jp aop.JoinPointer) {
+	username := ""
+	jp.Args().MapTo(func(u, p string) {
+		username = u
+	})
+
+	fmt.Printf("Before Login: %s\n", username)
 }
 
-func (p *Auth) After(username string, password string) {
-	fmt.Println(username, "logged in")
+// the args is same as Login
+func (p *Auth) After(username, password string) {
+	fmt.Printf("After Login: %s %s\n", username, password)
 }
 ```
 
@@ -102,9 +109,9 @@ fmt.Println("login result:", login)
 
 ```bash
 $> go run main.go
-zeal begin login
-zeal logged in
-login result: true
+Before Login: zeal
+After Login: zeal gogap
+Login result: true
 ```
 
 ### Advance
@@ -152,7 +159,7 @@ pointcut.Execution(`Login()`).WithIn(`example/aop/main`)
 
 ```
 
-#### Do not want to func type assertion
+#### Do not want to assertion func type
 
 ```go
 proxy.Invoke(new(Auth).Login, "zeal", "errorpassword").End(
@@ -169,8 +176,12 @@ proxy.Invoke(new(Auth).Login, "zeal", "errorpassword").End(
 type Foo struct {
 }
 
-func (p *Foo) Bar() {
-	fmt.Println("I am Foo.Bar")
+// @AfterReturning, the method could have args of aop.Result,
+// it will get the result from real func return values
+func (p *Foo) Bar(result aop.Result) {
+	result.MapTo(func(v bool) {
+		fmt.Println("Bar Bar Bar .... Result is:", v)
+	})
 }
 ```
 
@@ -190,7 +201,7 @@ aspectFoo.SetBeanFactory(beanFactory)
 ##### add advice
 
 ```go
-aspectFoo.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "Bar", PointcutRefID: "pointcut_1"})
+aspectFoo.AddAdvice(&aop.Advice{Ordering: aop.AfterReturning, Method: "Bar", PointcutRefID: "pointcut_1"})
 ```
 
 ##### add aspect into aop
@@ -202,19 +213,10 @@ gogapAop.AddAspect(aspectFoo)
 result
 
 ```bash
-zeal begin login
-zeal logged in
-I am Foo.Bar
-login result: true
-```
-
-stacktrace
-
-```bash
-1 aqjpeorhssa4p7c0ndf0 auth main.(Auth).Login Before
-2 aqjpeorhssa4p7c0ndf0 auth main.(Auth).Login *Login
-3 aqjpeorhssa4p7c0ndf0 auth main.(Auth).Login After
-4 aqjpeorhssa4p7c0ndf0 foo main.(Auth).Login Bar
+Before Login: zeal
+Bar Bar Bar .... Result is: true
+After Login: zeal gogap
+Login result: true
 ```
 
 #### Turn on trace for debug
@@ -234,11 +236,13 @@ for _, item := range t.Items() {
 
 ```bash
 $> go run main.go
-zeal begin login
-zeal logged in
-login result: true
+Before Login: zeal
+Bar Bar Bar .... Result is: true
+After Login: zeal gogap
+Login result: true
 1 aqjoq1jhssa4c7sm7a20 auth main.(Auth).Login Before
 2 aqjoq1jhssa4c7sm7a20 auth main.(Auth).Login *Login
-3 aqjoq1jhssa4c7sm7a20 auth main.(Auth).Login After
+3 aqjoq1jhssa4c7sm7a20 foo main.(Auth).Login Bar
+4 aqjoq1jhssa4c7sm7a20 auth main.(Auth).Login After
 ```
 > the `*` means the real func in this call

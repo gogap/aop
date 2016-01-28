@@ -33,4 +33,8 @@ var (
 	ErrExecExpressionAlreadySet  = errors.TN(AOPErrorNamespace, 22, "execution expression already set at pointcut {{.id}}, old expr is: {{.expr}}")
 	ErrTracAlreadyStarted        = errors.TN(AOPErrorNamespace, 23, "trace already started")
 	ErrTracNotStarted            = errors.TN(AOPErrorNamespace, 24, "trace not started")
+	ErrUnknownJoinPointArgType   = errors.TN(AOPErrorNamespace, 25, "unknown advice func arg type, bean id: {{.id}}, method: {{.method}}, pointcut {{.refID}}")
+	ErrJoinPointArgsUsage        = errors.TN(AOPErrorNamespace, 26, "only AfterReturning could have aop.Result argument, bean id: {{.id}}, method: {{.method}}, pointcut {{.refID}}")
+	ErrMapperArgShouldBeFunc     = errors.TN(AOPErrorNamespace, 27, "result map to arg should be a func")
+	ErrWrongMapFuncArgsNum       = errors.TN(AOPErrorNamespace, 28, "wrong end invoke func args number")
 )

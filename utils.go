@@ -1,6 +1,7 @@
 package aop
 
 import (
+	"github.com/gogap/errors"
 	"reflect"
 	"runtime"
 	"strings"
@@ -29,7 +30,7 @@ func getMethodMetadata(method interface{}) (metadata MethodMetadata, err error) 
 	return
 }
 
-func invokeAdvices(invokeID string, advices []*Advice, bean *Bean, methodName string, args Args) (err error) {
+func invokeAdvices(joinPoint JoinPointer, advices []*Advice, methodName string, result Result) (err error) {
 	for _, advice := range advices {
 		var retFunc func()
 		if IsTracing() {
@@ -38,9 +39,52 @@ func invokeAdvices(invokeID string, advices []*Advice, bean *Bean, methodName st
 				return
 			}
 
-			appendTraceItem(invokeID, metadata.File, metadata.Line, advice.Method, methodName, advice.beanRef.ID())
+			appendTraceItem(joinPoint.CallID(), metadata.File, metadata.Line, advice.Method, methodName, advice.beanRef.ID())
 		}
-		if _, err = advice.beanRef.Invoke(advice.Method, args, func(values ...interface{}) {
+
+		useJPArgs := false
+		var jpArgs Args
+
+		adviceArgsType := getFuncArgsType(advice.beanRef, advice.Method)
+		lenAdviceArgs := len(adviceArgsType)
+
+		if lenAdviceArgs != len(joinPoint.Args()) {
+			useJPArgs = true
+			jpArgs = make(Args, lenAdviceArgs)
+		} else {
+			for i, adviceArgType := range adviceArgsType {
+				if adviceArgType != reflect.TypeOf(joinPoint.Args()[i]) {
+					useJPArgs = true
+					jpArgs = make([]interface{}, lenAdviceArgs)
+				}
+			}
+		}
+
+		// inject jp to advice args
+		var invokeArgs Args
+		if useJPArgs {
+			jpType := reflect.TypeOf(joinPoint)
+			retType := reflect.TypeOf(result)
+
+			for i, argType := range adviceArgsType {
+				if jpType.ConvertibleTo(argType) {
+					jpArgs[i] = joinPoint
+				} else if argType == retType {
+					if advice.Ordering == AfterReturning {
+						jpArgs[i] = result
+					} else {
+						panic(ErrJoinPointArgsUsage.New())
+					}
+				} else {
+					panic(ErrUnknownJoinPointArgType.New(errors.Params{"id": advice.beanRef.id, "method": advice.Method, "refID": advice.PointcutRefID}))
+				}
+			}
+			invokeArgs = jpArgs
+		} else {
+			invokeArgs = joinPoint.Args()
+		}
+
+		if _, err = advice.beanRef.Invoke(advice.Method, invokeArgs, func(values ...interface{}) {
 			if values != nil {
 				for _, v := range values {
 					if errV, ok := v.(error); ok {
@@ -59,6 +103,15 @@ func invokeAdvices(invokeID string, advices []*Advice, bean *Bean, methodName st
 		if retFunc != nil {
 			retFunc()
 		}
+	}
+
+	return
+}
+
+func getFuncArgsType(bean *Bean, methodName string) (types []reflect.Type) {
+	method := reflect.ValueOf(bean.instance).MethodByName(methodName)
+	for i := 0; i < method.Type().NumIn(); i++ {
+		types = append(types, method.Type().In(i))
 	}
 
 	return

@@ -7,6 +7,38 @@ import (
 	"github.com/gogap/errors"
 )
 
+type Result []interface{}
+type Args []interface{}
+
+func (p Result) MapTo(fn interface{}) {
+	mapTo(fn, p)
+}
+
+func (p Args) MapTo(fn interface{}) {
+	mapTo(fn, p)
+}
+
+func mapTo(fn interface{}, v []interface{}) {
+	fnType := reflect.TypeOf(fn)
+	if fnType.Kind() != reflect.Func {
+		panic(ErrMapperArgShouldBeFunc.New())
+	}
+
+	values := make([]reflect.Value, len(v))
+
+	for i := 0; i < len(v); i++ {
+		values[i] = reflect.ValueOf(v[i])
+	}
+
+	if fnType.NumIn() != len(v) {
+		panic(ErrWrongMapFuncArgsNum.New())
+	}
+
+	fnValue := reflect.ValueOf(fn)
+
+	fnValue.Call(values)
+}
+
 type InvokeResult struct {
 	beanID     string
 	methodName string
