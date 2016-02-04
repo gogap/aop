@@ -78,17 +78,10 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 			advicesGroup = append(advicesGroup, advices)
 		}
 
-		callAdvicesFunc := func(order AdviceOrdering, retValues ...reflect.Value) (e error) {
-
-			var result Result
-			if order == AfterReturning {
-				for _, v := range retValues {
-					result = append(result, v.Interface())
-				}
-			}
+		callAdvicesFunc := func(order AdviceOrdering, resultValues ...reflect.Value) (e error) {
 
 			for _, advices := range advicesGroup {
-				if e = invokeAdvices(&joinPoint, advices[order], methodName, result); e != nil {
+				if e = invokeAdvices(&joinPoint, advices[order], methodName, resultValues); e != nil {
 					if errOutIndex >= 0 {
 						ret[errOutIndex] = reflect.ValueOf(&e).Elem()
 					}
@@ -104,9 +97,41 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 			return
 		}
 
-		//@Normal func
+		//@Real func
+		var retValues []reflect.Value
+
 		funcInSturctName := getFuncNameByStructFuncName(methodName)
-		retValues := beanValue.MethodByName(funcInSturctName).Call(inputs)
+
+		realFunc := func(args ...interface{}) Result {
+			values := []reflect.Value{}
+			for _, arg := range args {
+				values = append(values, reflect.ValueOf(arg))
+			}
+
+			return beanValue.MethodByName(funcInSturctName).Call(values)
+		}
+
+		//@Around
+		var aroundAdvice *Advice
+		for _, advices := range advicesGroup {
+			if aroundAdvices, exist := advices[Around]; exist && len(aroundAdvices) > 0 {
+				aroundAdvice = aroundAdvices[0]
+				break
+			}
+		}
+
+		if aroundAdvice != nil {
+			pjp := ProceedingJoinPoint{JoinPointer: &joinPoint, method: realFunc}
+
+			if err = invokeAdvices(&pjp, []*Advice{aroundAdvice}, methodName, nil); err != nil {
+				if errOutIndex >= 0 {
+					ret[errOutIndex] = reflect.ValueOf(&err).Elem()
+				}
+				return
+			}
+		} else {
+			retValues = realFunc(inputs)
+		}
 
 		if IsTracing() {
 			var metadata MethodMetadata
@@ -157,14 +182,14 @@ func (p *AOP) GetProxy(beanID string) (proxy *Proxy, err error) {
 		mType := methodV.Type()
 
 		var metadata MethodMetadata
-		if metadata, err = getMethodMetadata(methodT.Func.Interface()); err != nil {
+		if metadata, err = getMethodMetadata(methodT); err != nil {
 			return
 		}
 
-		newFunc := p.funcWrapper(bean, metadata.MethodName, mType)
+		newFunc := p.funcWrapper(bean, metadata.Method.Name, mType)
 		funcV := reflect.MakeFunc(mType, newFunc)
 
-		metadata.method = funcV.Interface() // rewrite to new proxy func
+		metadata.Method.Func = funcV // rewrite to new proxy func
 
 		tmpProxy.registryFunc(metadata)
 	}

@@ -61,7 +61,7 @@ func (p *Bean) methodMetadata(methodName string) (metadata MethodMetadata, err e
 		return
 	}
 
-	metadata, err = getMethodMetadata(method.Func.Interface())
+	metadata, err = getMethodMetadata(method)
 
 	return
 }

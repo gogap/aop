@@ -7,7 +7,7 @@ import (
 	"github.com/gogap/errors"
 )
 
-type Result []interface{}
+type Result []reflect.Value
 type Args []interface{}
 
 func (p Result) MapTo(fn interface{}) {
@@ -15,22 +15,22 @@ func (p Result) MapTo(fn interface{}) {
 }
 
 func (p Args) MapTo(fn interface{}) {
-	mapTo(fn, p)
+	values := []reflect.Value{}
+
+	for _, arg := range p {
+		values = append(values, reflect.ValueOf(arg))
+	}
+
+	mapTo(fn, values)
 }
 
-func mapTo(fn interface{}, v []interface{}) {
+func mapTo(fn interface{}, values []reflect.Value) {
 	fnType := reflect.TypeOf(fn)
 	if fnType.Kind() != reflect.Func {
 		panic(ErrMapperArgShouldBeFunc.New())
 	}
 
-	values := make([]reflect.Value, len(v))
-
-	for i := 0; i < len(v); i++ {
-		values[i] = reflect.ValueOf(v[i])
-	}
-
-	if fnType.NumIn() != len(v) {
+	if fnType.NumIn() != len(values) {
 		panic(ErrWrongMapFuncArgsNum.New())
 	}
 

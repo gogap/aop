@@ -25,14 +25,14 @@ func (p *Proxy) BeanID() string {
 func (p *Proxy) Method(fn interface{}) (method interface{}) {
 
 	methodName := ""
-	if methodMetadata, err := getMethodMetadata(fn); err != nil {
+	if methodMetadata, err := getFuncMetadata(fn); err != nil {
 		panic(err)
 	} else {
-		methodName = methodMetadata.MethodName
+		methodName = methodMetadata.Method.Name
 	}
 
 	if metadata, exist := p.funcs[methodName]; exist {
-		method = metadata.method
+		method = metadata.Method.Func.Interface()
 		return
 	}
 	return
@@ -41,14 +41,14 @@ func (p *Proxy) Method(fn interface{}) (method interface{}) {
 func (p *Proxy) Invoke(method interface{}, args ...interface{}) (result *InvokeResult) {
 
 	methodName := ""
-	if methodMetadata, err := getMethodMetadata(method); err != nil {
+	if methodMetadata, err := getFuncMetadata(method); err != nil {
 		result = &InvokeResult{
 			beanID:     p.beanID,
 			methodName: methodName,
 			err:        err,
 		}
 	} else {
-		methodName = methodMetadata.MethodName
+		methodName = methodMetadata.Method.Name
 	}
 
 	fnMetadata, exist := p.funcs[methodName]
@@ -61,7 +61,7 @@ func (p *Proxy) Invoke(method interface{}, args ...interface{}) (result *InvokeR
 		return
 	}
 
-	fn := fnMetadata.method
+	fn := fnMetadata.Method.Func.Interface()
 
 	fnType := reflect.TypeOf(fn)
 	if fnType.Kind() != reflect.Func {
@@ -100,5 +100,5 @@ func (p *Proxy) Invoke(method interface{}, args ...interface{}) (result *InvokeR
 }
 
 func (p *Proxy) registryFunc(metadata MethodMetadata) {
-	p.funcs[metadata.MethodName] = metadata
+	p.funcs[metadata.Method.Name] = metadata
 }
