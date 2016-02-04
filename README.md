@@ -34,6 +34,18 @@ func (p *Auth) Before(jp aop.JoinPointer) {
 func (p *Auth) After(username, password string) {
 	fmt.Printf("After Login: %s %s\n", username, password)
 }
+
+// use join point to around the real func of login
+func (p *Auth) Around(pjp aop.ProceedingJoinPointer) {
+	fmt.Println("@Begin Around")
+
+	ret := pjp.Proceed("fakeName", "fakePassword")
+	ret.MapTo(func(loginResult bool) {
+		fmt.Println("@Proceed Result is", loginResult)
+	})
+
+	fmt.Println("@End Around")
+}
 ```
 
 In this case, we want call `Before()` func before `Login()`, and `After()` func after `Login()`
@@ -82,6 +94,7 @@ aspect.AddPointcut(pointcut)
 ```go
 aspect.AddAdvice(&aop.Advice{Ordering: aop.Before, Method: "Before", PointcutRefID: "pointcut_1"})
 aspect.AddAdvice(&aop.Advice{Ordering: aop.After, Method: "After", PointcutRefID: "pointcut_1"})
+aspect.AddAdvice(&aop.Advice{Ordering: aop.Around, Method: "Around", PointcutRefID: "pointcut_1"})
 ```
 
 #### Step 5: Create AOP
@@ -236,13 +249,32 @@ for _, item := range t.Items() {
 
 ```bash
 $> go run main.go
+go run main.go
+==========Func Type Assertion==========
 Before Login: zeal
-Bar Bar Bar .... Result is: true
+@Begin Around
+@Login fakeName fakePassword
+@Proceed Result is false
+@End Around
 After Login: zeal gogap
-Login result: true
-1 aqjoq1jhssa4c7sm7a20 auth main.(Auth).Login Before
-2 aqjoq1jhssa4c7sm7a20 auth main.(Auth).Login *Login
-3 aqjoq1jhssa4c7sm7a20 foo main.(Auth).Login Bar
-4 aqjoq1jhssa4c7sm7a20 auth main.(Auth).Login After
+Login result: false
+================Invoke=================
+Before Login: zeal
+@Begin Around
+@Login fakeName fakePassword
+@Proceed Result is false
+@End Around
+After Login: zeal errorpassword
+Login result: false
+1 aqpk3jjhssa5ul6pt0h0 auth main.(Auth).Login Before
+2 aqpk3jjhssa5ul6pt0h0 auth main.(Auth).Login Around
+3 aqpk3jjhssa5ul6pt0h0 auth main.(Auth).Login *Login
+4 aqpk3jjhssa5ul6pt0h0 foo main.(Auth).Login Bar
+5 aqpk3jjhssa5ul6pt0h0 auth main.(Auth).Login After
+6 aqpk3jjhssa5ul6pt0hg auth main.(Auth).Login Before
+7 aqpk3jjhssa5ul6pt0hg auth main.(Auth).Login Around
+8 aqpk3jjhssa5ul6pt0hg auth main.(Auth).Login *Login
+9 aqpk3jjhssa5ul6pt0hg foo main.(Auth).Login Bar
+10 aqpk3jjhssa5ul6pt0hg auth main.(Auth).Login After
 ```
 > the `*` means the real func in this call
