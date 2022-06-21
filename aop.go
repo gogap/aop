@@ -130,7 +130,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 				return
 			}
 		} else {
-			retValues = realFunc(inputs)
+			retValues = beanValue.MethodByName(funcInSturctName).Call(inputs)
 		}
 
 		if IsTracing() {
