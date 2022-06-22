@@ -102,7 +102,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 
 		funcInSturctName := getFuncNameByStructFuncName(methodName)
 
-		realFunc := func(args ...interface{}) Result {
+		realFunc := func(args ...interface{}) []reflect.Value {
 			values := []reflect.Value{}
 			for _, arg := range args {
 				values = append(values, reflect.ValueOf(arg))
@@ -129,6 +129,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 				}
 				return
 			}
+			retValues = pjp.result
 		} else {
 			retValues = beanValue.MethodByName(funcInSturctName).Call(inputs)
 		}
