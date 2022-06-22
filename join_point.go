@@ -27,7 +27,6 @@ type JoinPointer interface {
 
 type ProceedingJoinPointer interface {
 	JoinPointer
-
 	Proceed(args ...interface{}) Result
 }
 
@@ -50,8 +49,8 @@ func (p *JoinPoint) Target() *Bean {
 }
 
 type ProceedingJoinPoint struct {
+	result []reflect.Value
 	JoinPointer
-
 	method interface{}
 }
 
@@ -78,6 +77,8 @@ func (p *ProceedingJoinPoint) Proceed(args ...interface{}) (result Result) {
 	}
 
 	rets := v.Call(vArgs)
+
+	p.result = rets
 
 	Result(rets).MapTo(func(r Result) {
 		result = r

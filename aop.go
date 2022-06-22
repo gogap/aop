@@ -129,6 +129,7 @@ func (p *AOP) funcWrapper(bean *Bean, methodName string, methodType reflect.Type
 				}
 				return
 			}
+			retValues = pjp.result
 		} else {
 			retValues = beanValue.MethodByName(funcInSturctName).Call(inputs)
 		}
