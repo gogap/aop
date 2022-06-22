@@ -51,7 +51,7 @@ func (p *JoinPoint) Target() *Bean {
 type ProceedingJoinPoint struct {
 	result []reflect.Value
 	JoinPointer
-	method interface{}
+	method func(args ...interface{}) []reflect.Value
 }
 
 func (p *ProceedingJoinPoint) Args() Args {
@@ -62,27 +62,7 @@ func (p *ProceedingJoinPoint) Target() *Bean {
 	return p.JoinPointer.Target()
 }
 
-func (p *ProceedingJoinPoint) Proceed(args ...interface{}) (result Result) {
-	v := reflect.ValueOf(p.method)
-
-	if v.Type().NumIn() > 0 {
-		if len(args) == 0 {
-			args = p.JoinPointer.Args()
-		}
-	}
-
-	var vArgs []reflect.Value
-	for _, arg := range args {
-		vArgs = append(vArgs, reflect.ValueOf(arg))
-	}
-
-	rets := v.Call(vArgs)
-
-	p.result = rets
-
-	Result(rets).MapTo(func(r Result) {
-		result = r
-	})
-
-	return
+func (p *ProceedingJoinPoint) Proceed(args ...interface{}) Result {
+	p.result = p.method(args...)
+	return p.result
 }
